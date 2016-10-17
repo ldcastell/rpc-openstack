@@ -94,3 +94,6 @@ holland_requires_dependencies:
   - virtualenv-tools
 
 swift_filecheck_enabled: true
+swift_access_container: "accesscheck"
+swift_access_file: "index.html"
+swift_filecheck_user_name: "accesscheck"

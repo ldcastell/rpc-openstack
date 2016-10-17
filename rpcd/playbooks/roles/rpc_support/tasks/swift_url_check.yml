@@ -21,7 +21,7 @@
     login_user: "{{ keystone_admin_user_name }}"
     login_password: "{{ keystone_auth_admin_password }}"
     login_project_name: "{{ keystone_admin_tenant_name }}"
-    user_name: "{{ swift_filecheck_user }}"
+    user_name: "{{ swift_filecheck_user_name }}"
     tenant_name: "{{ swift_service_project_name }}"
     password: "{{ swift_filecheck_password }}"
     insecure: "{{ keystone_service_adminuri_insecure }}"
@@ -29,7 +29,7 @@
   when:
     - not swift_service_in_ldap | bool
     - swift_filecheck_enabled | bool
-  until: add_user|success
+  until: add_user | success
   retries: 5
   delay: 10
 
@@ -49,24 +49,23 @@
   when:
     - not swift_service_in_ldap | bool
     - swift_filecheck_enabled | bool
-  until: add_user_role|success
+  until: add_user_role | success
   retries: 5
   delay: 10
 
+# Place an HTML file in a swift container
 - name: Create check file
   shell: >
     source /root/openrc;
     /usr/local/bin/swift upload {{ swift_access_container }}
-    {{ swift_access_file }} |
-    grep "Account:" |
-    awk '{ print $2 }'
+    {{ swift_access_file }}
   args:
     executable: "/bin/bash"
-  register: swift_upload
+  when:
+    - swift_filecheck_enabled | bool
   changed_when: false
 
-- debug: msg="{{ swift_list.stdout }}"
-
+# Set global read permission on the swift container
 - name: Configure check container ACL
   shell: >
     source /root/openrc;
@@ -74,9 +73,11 @@
     {{ swift_access_container }}
   args:
     executable: "/bin/bash"
-  register: swift_acl
+  when:
+    - swift_filecheck_enabled | bool
   changed_when: false
 
+# Configure the container to return an index file by default
 - name: Configure check container index file
   shell: >
     source /root/openrc;
@@ -84,9 +85,11 @@
     {{ swift_access_container }}
   args:
     executable: "/bin/bash"
-  register: swift_index
+  when:
+    - swift_filecheck_enabled | bool
   changed_when: false
 
+# Fetch the swift account token to build the URL
 - name: Retrieve check file key
   shell: >
     source /root/openrc;
@@ -96,9 +99,12 @@
     awk '{ print $2 }'
   args:
     executable: "/bin/bash"
+  when:
+    - swift_filecheck_enabled | bool
   register: swift_url_key
   changed_when: false
 
+# Set the full check URL as a fact
 - name: Set URL fact
   set_fact:
-    swift_checkfile_url: "{{ maas_swift_proxy_scheme | default(maas_scheme)}}://{{ ip_address }}:8080/v1/{{ swift_url_key }}/{{ swift_access_container }}/{{ swift_access_file }}"
+    swift_checkfile_url: "{{ maas_swift_proxy_scheme | default(maas_scheme)}}://{{ external_lb_vip_address }}:8080/v1/{{ swift_url_key }}/{{ swift_access_container }}/{{ swift_access_file }}"
