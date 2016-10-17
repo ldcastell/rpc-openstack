@@ -29,6 +29,7 @@
   when:
     - not swift_service_in_ldap | bool
     - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
   until: add_user | success
   retries: 5
   delay: 10
@@ -49,20 +50,31 @@
   when:
     - not swift_service_in_ldap | bool
     - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
   until: add_user_role | success
   retries: 5
   delay: 10
+
+# Copy test HTML file to the swift proxy for uploading
+- name: Add source script to bash_completion.d
+  copy:
+    dest: "/tmp/{{ swift_access_file }}"
+    src: "index.html"
+  when:
+    - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
 
 # Place an HTML file in a swift container
 - name: Create check file
   shell: >
     source /root/openrc;
     /usr/local/bin/swift upload {{ swift_access_container }}
-    {{ swift_access_file }}
+    /tmp/{{ swift_access_file }}
   args:
     executable: "/bin/bash"
   when:
     - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
   changed_when: false
 
 # Set global read permission on the swift container
@@ -75,6 +87,7 @@
     executable: "/bin/bash"
   when:
     - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
   changed_when: false
 
 # Configure the container to return an index file by default
@@ -87,6 +100,7 @@
     executable: "/bin/bash"
   when:
     - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
   changed_when: false
 
 # Fetch the swift account token to build the URL
@@ -101,6 +115,7 @@
     executable: "/bin/bash"
   when:
     - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
   register: swift_url_key
   changed_when: false
 
@@ -108,3 +123,6 @@
 - name: Set URL fact
   set_fact:
     swift_checkfile_url: "{{ maas_swift_proxy_scheme | default(maas_scheme)}}://{{ external_lb_vip_address }}:8080/v1/{{ swift_url_key }}/{{ swift_access_container }}/{{ swift_access_file }}"
+  when:
+    - swift_filecheck_enabled | bool
+    - inventory_host in groups['swift_proxy'][0]
