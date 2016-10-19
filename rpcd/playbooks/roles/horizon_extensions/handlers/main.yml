@@ -1,2 +1,0 @@
-- name: Restart apache2
-  service: name=apache2 state=restarted pattern=apache2
